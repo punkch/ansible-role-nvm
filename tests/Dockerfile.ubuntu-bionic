@@ -34,4 +34,4 @@ RUN mkdir -p /etc/ansible/ && echo "[local]\nlocalhost ansible_connection=local\
 # using tail at the ENTRYPOINT keeps the container running so we can execute commands against it
 #ENTRYPOINT ["tail", "-f", "/dev/null"]
 ENTRYPOINT ["run-non-root"]
-CMD ["--init"]
+# CMD ["tail", "-f", "/dev/null"]
