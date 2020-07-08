@@ -24,9 +24,6 @@ env:
   jobs:
       role_name=ansible-role-nvm
 
-services:
-  - docker
-
 before_install:
   - 'sudo docker pull ${distribution}:${version}'
   - 'sudo docker build --no-cache --rm --file=tests/Dockerfile.${distribution}-${version} --tag=${distribution}-${version}:ansible ./tests'
