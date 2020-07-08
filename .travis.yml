@@ -31,17 +31,17 @@ before_install:
 script:
   - container_id=$(mktemp)
   - echo ${container_id}
-  - 'docker run --detach -t --privileged --read-only --volume /sys/fs/cgroup:/sys/fs/cgroup --volume="${PWD}":/etc/ansible/roles/${role_name} ${distribution}-${version}:ansible > "${container_id}"'
+  - 'docker run -d -t --privileged --read-only --volume /sys/fs/cgroup:/sys/fs/cgroup --volume="${PWD}":/etc/ansible/roles/${role_name} ${distribution}-${version}:ansible > "${container_id}"'
   #- 'docker run -a stderr -v /sys/fs/cgroup:/sys/fs/cgroup:ro --volume="${PWD}":/etc/ansible/roles/${role_name}:ro ${distribution}-${version}:ansible > "${container_id}"'
   - 'docker ps -a'
   - 'docker ps -a'
   - 'docker ps -a'
   - 'docker ps -a'
-  - 'docker exec "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml --syntax-check'
+  - 'docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml --syntax-check'
   - 'docker ps -a'
-  - 'docker exec "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml'
+  - 'docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml'
   - >
-    docker exec "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -v /etc/ansible/roles/${role_name}/tests/test.yml
+    docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -v /etc/ansible/roles/${role_name}/tests/test.yml
     | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
   - 'sudo docker rm -f "$(cat ${container_id})"'
 
