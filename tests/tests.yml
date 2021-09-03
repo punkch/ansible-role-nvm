@@ -52,7 +52,9 @@
 #     - role: ansible-role-nvm
 #       uninstall: true
 #
-- hosts: ubuntu-bionic
-  roles:
-    - role: ansible-role-nvm
-      autocomplete: true
+# - hosts: all
+#   roles:
+#     - role: ansible-role-nvm
+#       autocomplete: true
+#       nvm_install: curl
+#       nvm_profile: '$HOME/.bashrc'

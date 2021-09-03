@@ -25,3 +25,7 @@ galaxy_info:
   galaxy_tags:
     - development
     - web
+    - nvm
+    - "node version manager"
+    - node
+    - nodejs

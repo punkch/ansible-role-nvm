@@ -2,6 +2,7 @@
 services: docker
 
 env:
+  ANSIBLE_FORCE_COLOR: 1
   global:
     # - distribution: centos
     #   version: 7
@@ -26,22 +27,16 @@ env:
 
 before_install:
   - 'sudo docker pull ${distribution}:${version}'
-  - 'sudo docker build --no-cache --rm --file=tests/Dockerfile.${distribution}-${version} --tag=${distribution}-${version}:ansible ./tests'
+  - 'docker build --no-cache --rm --file=tests/Dockerfile.${distribution}-${version} --tag=${distribution}-${version}:ansible ./tests'
 
 script:
   - container_id=$(mktemp)
   - echo ${container_id}
-  - 'docker run -d -t --privileged --read-only --volume /sys/fs/cgroup:/sys/fs/cgroup --volume="${PWD}":/etc/ansible/roles/${role_name} ${distribution}-${version}:ansible > "${container_id}"'
-  #- 'docker run -a stderr -v /sys/fs/cgroup:/sys/fs/cgroup:ro --volume="${PWD}":/etc/ansible/roles/${role_name}:ro ${distribution}-${version}:ansible > "${container_id}"'
-  - 'docker ps -a'
-  - 'docker ps -a'
-  - 'docker ps -a'
-  - 'docker ps -a'
-  - 'docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml --syntax-check'
-  - 'docker ps -a'
-  - 'docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/test.yml'
+  - 'docker run -d -t run -d -t --mount type=bind,source="${PWD}",destination=/etc/ansible/roles/ansible-role-nvm --mount type=bind,source=/sys/fs/cgroup,destination=/sys/fs/cgroup,readonly ubuntu-bionic:ansible "/lib/systemd/systemd" > "${container_id}"'
+  - 'docker exec -it "$(cat ${container_id})" ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/main.yml --syntax-check'
+  - 'docker exec -it "$(cat ${container_id})" ansible-playbook -vvvv /etc/ansible/roles/${role_name}/tests/main.yml'
   - >
-    docker exec -it "$(cat ${container_id})" env ANSIBLE_FORCE_COLOR=1 ansible-playbook -v /etc/ansible/roles/${role_name}/tests/test.yml
+    docker exec -it "$(cat ${container_id})" ansible-playbook -v /etc/ansible/roles/${role_name}/tests/main.yml
     | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
   - 'sudo docker rm -f "$(cat ${container_id})"'
 

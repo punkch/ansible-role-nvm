@@ -1,0 +1,34 @@
+# Use an official Ubuntu 14.04 runtime as a parent image
+FROM ubuntu:trusty
+
+# Update the base OS and install Curl, git, python3, sudo, wget & pip
+RUN apt-get update \
+ && apt-get dist-upgrade -y \
+ && apt-get install -y \
+               curl \
+               git \
+               python3 \
+               python3-dev \
+               sudo \
+               wget \
+ && curl https://bootstrap.pypa.io/get-pip.py -o /root/get-pip.py \
+ && $(which python3) /root/get-pip.py \
+ && $(which pip3) install ansible molecule \
+ && rm -rf /var/lib/apt/lists/*
+ #In addition, when you clean up the apt cache by removing /var/lib/apt/lists it reduces the image size, since the apt cache is not stored in a layer.
+
+ # Add non-root user we're going to test with
+RUN adduser --disabled-password --gecos '' ansible-test \
+ && adduser ansible-test sudo \
+ && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Warn users if they are running as root.
+# See the "Invoked with name sh" section of
+# https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html .
+# See also https://www.tldp.org/LDP/Linux-Filesystem-Hierarchy/html/etc.html .
+ENV ENV /etc/profile
+RUN printf "%s" "if [ "\$\(whoami\)" = 'root' ]; then printf \"\n\033[1;31m%s\033[0m\n\n\" \"WARNING: YOU ARE RUNNING AS THE ROOT USER!\"; fi" \
+ >> /etc/profile.d/warn-root.sh
+
+# Copy Ansible Test inventory file
+COPY ./inventory /etc/ansible/

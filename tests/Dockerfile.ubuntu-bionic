@@ -1,37 +1,56 @@
-# Use an official Ubuntu 18.04 runtime as a parent image
-FROM ubuntu:bionic
+# https://github.com/docker/cli/issues/2762#issuecomment-776298308
+# ARG PYTHON=3.7
 
-# Update the base OS and install Curl, Python3 and PIP
-RUN apt-get update && \
-apt-get dist-upgrade -y \
-  && apt-get install -y \
-                curl \
-                python3 \
-                python3-dev \
-  && curl https://bootstrap.pypa.io/get-pip.py -o /root/get-pip.py \
-  && $(which python3) /root/get-pip.py \
-  && $(which pip3) install ansible
+# Use an official Ubuntu Minimal 18.04 runtime as a parent image
+FROM ubuntu:bionic AS base
+LABEL maintainer="MORGANGRAPHICS, INC"
+ARG PYTHON=3.7
+ARG USER=ansible-test
+ARG PYTHON_VERSION=$PYTHON
 
-# Install tini for run-non-root's --init option.
-ADD https://github.com/krallin/tini/releases/download/v0.18.0/tini-static /usr/local/bin/tini
-RUN chmod +rx /usr/local/bin/tini
+# Update the base OS, install dumb-init, Curl, Sudo
+# Create Non ROOT User
+# When you clean up the apt cache by removing /var/lib/apt/lists it
+# reduces the image size, since the apt cache is not stored in a layer.
+RUN apt-get -y update \
+    && apt-get -y dist-upgrade \
+    && apt install -y software-properties-common \
+    dumb-init \
+    curl \
+    git \
+    sudo \
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && adduser --disabled-password --gecos '' ${USER} \
+    && adduser ${USER} sudo \
+    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# Add Generic way to run things as non-Root user
-ADD https://raw.githubusercontent.com/creemama/run-non-root/master/run-non-root.sh /usr/local/bin/run-non-root
-RUN chmod +rx /usr/local/bin/run-non-root
+# Install Python && PIP
+RUN add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get install -y python${PYTHON_VERSION} \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 10 \
+    && curl https://bootstrap.pypa.io/get-pip.py -o /root/get-pip.py \
+    && $(which python) /root/get-pip.py \
+    && update-alternatives --install /usr/bin/pip pip $(which pip3) 10
 
-# Warn users if they are running as root.
-# See the "Invoked with name sh" section of
+# Warn users if they are running as root. See the "Invoked with name sh" section of
 # https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html .
 # See also https://www.tldp.org/LDP/Linux-Filesystem-Hierarchy/html/etc.html .
 ENV ENV /etc/profile
 RUN printf "%s" "if [ "\$\(whoami\)" = 'root' ]; then printf \"\n\033[1;31m%s\033[0m\n\n\" \"WARNING: YOU ARE RUNNING AS THE ROOT USER!\"; fi" \
- >> /etc/profile.d/warn-root.sh
+ >> /etc/profile.d/warn-root.sh
 
-# Generate the inventory files
-RUN mkdir -p /etc/ansible/ && echo "[local]\nlocalhost ansible_connection=local\n\n[ubuntu-bionic]\nlocalhost ansible_connection=local" > /etc/ansible/hosts
+# Run install as user
+USER ${USER}
+# Set working Directory
+WORKDIR /home/${USER}/
 
-# using tail at the ENTRYPOINT keeps the container running so we can execute commands against it
-#ENTRYPOINT ["tail", "-f", "/dev/null"]
-ENTRYPOINT ["run-non-root"]
-# CMD ["tail", "-f", "/dev/null"]
+# Copy Ansible Test inventory file
+COPY ./inventory /etc/ansible/
+COPY ./requirements.txt .
+
+# Update the Path Environment Variable to include the local Python install
+ENV PATH "$PATH:/home/${USER}/.local/bin"
+
+# Install the App requirements
+RUN pip install -r requirements.txt

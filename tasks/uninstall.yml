@@ -1,0 +1,47 @@
+---
+
+  #UNINSTALL or CLEAN INSTALL OF NVM
+  - name: uninstall nvm
+    block:
+
+    # find any directory that has nvm in it e.g. /.nvm or /nvm etc.
+    # ignore anything that has "Permission denied" in the response and then
+    # direct it to stdout >&1
+    # if there is a match force the correct .rc code e.g. .rc = 0
+    # ignore_errors is there for when there is no match and the wrong .rc code is returned
+    - name: check folders that match nvm
+      shell: 'find / -type d -regex ".*/.?nvm" 2>&1 | { grep -v "Permission denied" >&1; [ $? -eq 0 ]; }'
+      args:
+        executable: "{{ user_shell.executable }}"
+      register: nvm_dir_possible_locations
+      ignore_errors: true
+
+    # remove any directories that match
+    - name: Uninstall NVM directory
+      file:
+        path: "{{ nvm_dir }}"
+        state: absent
+      with_items: "{{ nvm_dir_possible_locations.stdout }}"
+      when: nvm_dir_possible_locations.stdout | length > 0
+
+    # r = recursive
+    # w = word-regex Select only those lines containing matches that form whole words.
+    # s = suppress error messages (no "Permission Denied")
+    # l = files with matches (just the path)
+    # I = ignore binary files
+    # -- exclude anything with log in the name, actual .log and .py files
+    # ignore_errors is there for when there is no match and the wrong .rc code is returned
+    - name: check files in /home, /etc and /root for nvm related stuff
+      shell: 'grep -rwslI -E "^export.+nvm\"|\[.+nvm(\sbash_completion)?" /home /etc /root --exclude=\*{log,.log,.py}'
+      args:
+        executable: "/bin/bash"
+      register: nvm_shell_possible_locations
+      ignore_errors: true
+
+    - name: Remove NVM nvm_profile info
+      lineinfile:
+        regexp: '^export.+nvm\"|\[.+nvm(\sbash_completion)?'
+        path: "{{ item }}"
+        state: absent
+      with_items: "{{ nvm_shell_possible_locations.stdout }}"
+      when: nvm_shell_possible_locations.stdout | length > 0
