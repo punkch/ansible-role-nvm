@@ -110,7 +110,7 @@
     become: true
     when: not profile_file.stat.exists
 
-  when: nvm_install in ['curl', 'wget']
+  when: nvm_install in ['curl', 'wget'] and nvm_profile | length > 0
 
 
 # git
